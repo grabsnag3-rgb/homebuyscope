@@ -1,0 +1,12 @@
+.theme-home {
+  --color-bg: #f8f5ef;
+  --color-surface: #ffffff;
+  --color-text: #172033;
+  --color-muted: #526173;
+  --color-border: #e2d8c8;
+  --color-accent: #8b5e34;
+  --color-accent-soft: #efe0cf;
+  --color-danger-soft: #fee2e2;
+  --color-warning-soft: #fef3c7;
+  --radius-card: 22px;
+}

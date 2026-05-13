@@ -1,0 +1,12 @@
+.theme-auto {
+  --color-bg: #f4f7fb;
+  --color-surface: #ffffff;
+  --color-text: #172033;
+  --color-muted: #64748b;
+  --color-border: #dbe4f0;
+  --color-accent: #2563eb;
+  --color-accent-soft: #dbeafe;
+  --color-danger-soft: #fee2e2;
+  --color-warning-soft: #fef3c7;
+  --radius-card: 22px;
+}

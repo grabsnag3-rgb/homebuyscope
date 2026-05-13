@@ -5,14 +5,17 @@ import {
   normalizeDecisionBlocks,
   getPrimaryText,
 } from "../lib/normalizeDecisionBlocks";
+import { loadRelatedPages } from "../lib/loadRelatedPages";
+import { site } from "../site-pack";
 import "./DecisionPage.css";
 
 function BlockCard({ block, variant = "default" }) {
   const hasItems = Array.isArray(block.items) && block.items.length > 0;
+  const label = site.labels?.[block.type] || block.label || block.type;
 
   return (
     <section className={`decision-card decision-card--${variant}`}>
-      <div className="decision-card__eyebrow">{block.label}</div>
+      <div className="decision-card__eyebrow">{label}</div>
 
       {block.title ? <h3>{block.title}</h3> : null}
 
@@ -22,7 +25,9 @@ function BlockCard({ block, variant = "default" }) {
         <ul>
           {block.items.map((item, index) => (
             <li key={`${block.type}-${index}`}>
-              {typeof item === "string" ? item : item.text || item.label || JSON.stringify(item)}
+              {typeof item === "string"
+                ? item
+                : item.text || item.label || JSON.stringify(item)}
             </li>
           ))}
         </ul>
@@ -56,12 +61,36 @@ function Zone({ title, subtitle, blocks, variant }) {
   );
 }
 
+function RelatedDecisions({ pages }) {
+  if (!pages?.length) return null;
+
+  return (
+    <section className="decision-related">
+      <div className="decision-zone__header">
+        <h2>{site.labels?.related || "Related decisions"}</h2>
+        <p>Keep pressure-testing nearby decisions before you commit.</p>
+      </div>
+
+      <div className="decision-related__grid">
+        {pages.map((page) => (
+          <Link className="decision-related__card" key={page.slug} to={`/p/${page.slug}`}>
+            <h3>{page.title}</h3>
+            {page.seo_description ? <p>{page.seo_description}</p> : null}
+          </Link>
+        ))}
+      </div>
+    </section>
+  );
+}
+
 export default function DecisionPage() {
   const { slug } = useParams();
+
   const [state, setState] = useState({
     loading: true,
     page: null,
     blocks: [],
+    relatedPages: [],
     error: null,
   });
 
@@ -70,26 +99,38 @@ export default function DecisionPage() {
 
     async function run() {
       try {
-        setState((current) => ({ ...current, loading: true, error: null }));
+        setState((current) => ({
+          ...current,
+          loading: true,
+          error: null,
+        }));
 
         const result = await loadDecisionPage(slug);
 
-        if (cancelled) return;
-
         if (!result) {
-          setState({
-            loading: false,
-            page: null,
-            blocks: [],
-            error: "not_found",
-          });
+          if (!cancelled) {
+            setState({
+              loading: false,
+              page: null,
+              blocks: [],
+              relatedPages: [],
+              error: "not_found",
+            });
+          }
           return;
         }
+
+        const relatedPages = result.page?.decision_record_id
+          ? await loadRelatedPages(result.page.decision_record_id, 6)
+          : [];
+
+        if (cancelled) return;
 
         setState({
           loading: false,
           page: result.page,
           blocks: result.blocks || [],
+          relatedPages: relatedPages || [],
           error: null,
         });
       } catch (error) {
@@ -100,6 +141,7 @@ export default function DecisionPage() {
             loading: false,
             page: null,
             blocks: [],
+            relatedPages: [],
             error: "load_failed",
           });
         }
@@ -121,12 +163,12 @@ export default function DecisionPage() {
   useEffect(() => {
     if (!state.page) return;
 
-    const title = state.page.title || "HomeBuyScope Decision Guide";
+    const title = state.page.title || `${site.name} Decision Guide`;
     const description =
       state.page.seo_description ||
-      "A structured HomeBuyScope decision guide for home buyers.";
+      `A structured ${site.name} decision guide.`;
 
-    document.title = `${title} | HomeBuyScope`;
+    document.title = `${title} | ${site.name}`;
 
     let meta = document.querySelector('meta[name="description"]');
     if (!meta) {
@@ -142,7 +184,12 @@ export default function DecisionPage() {
       canonical.setAttribute("rel", "canonical");
       document.head.appendChild(canonical);
     }
-    canonical.setAttribute("href", `https://www.homebuyscope.com/p/${slug}`);
+
+    const canonicalHref =
+      state.page.canonical_url ||
+      (site.canonicalHost ? `${site.canonicalHost}/p/${slug}` : `/p/${slug}`);
+
+    canonical.setAttribute("href", canonicalHref);
   }, [state.page, slug]);
 
   if (state.loading) {
@@ -157,11 +204,11 @@ export default function DecisionPage() {
     return (
       <main className="decision-shell">
         <Link className="decision-back" to="/">
-          ← Back to HomeBuyScope
+          ← Back to {site.name}
         </Link>
         <h1>Decision guide not found</h1>
         <p className="decision-muted">
-          This HomeBuyScope page may have moved or is not published yet.
+          This {site.name} page may have moved or is not published yet.
         </p>
       </main>
     );
@@ -172,11 +219,14 @@ export default function DecisionPage() {
   return (
     <main className="decision-shell">
       <Link className="decision-back" to="/">
-        ← Back to HomeBuyScope
+        ← Back to {site.name}
       </Link>
 
       <header className="decision-hero">
-        <div className="decision-hero__label">Home buyer decision guide</div>
+        <div className="decision-hero__label">
+          {site.decisionEyebrow || site.labels?.decision_guide || "Decision guide"}
+        </div>
+
         <h1>{state.page.title}</h1>
 
         {state.page.seo_description ? (
@@ -185,7 +235,7 @@ export default function DecisionPage() {
 
         {primaryCall ? (
           <div className="decision-hero__call">
-            <span>The short call</span>
+            <span>{site.labels?.quick_call || "Quick call"}</span>
             <p>{primaryCall}</p>
           </div>
         ) : null}
@@ -199,7 +249,7 @@ export default function DecisionPage() {
       />
 
       <Zone
-        title="What changes the answer"
+        title={site.labels?.what_changes_call || "What changes the answer"}
         subtitle="These are the conditions that can flip the decision."
         blocks={zones.conditions}
         variant="default"
@@ -207,17 +257,19 @@ export default function DecisionPage() {
 
       <Zone
         title="Evidence and risk"
-        subtitle="Use this section to separate a real issue from a negotiation guess."
+        subtitle="Use this section to separate a real issue from a guess."
         blocks={zones.evidence}
         variant="warning"
       />
 
       <Zone
-        title="Next move"
+        title={site.labels?.next_move || "Next move"}
         subtitle="Turn the decision into a concrete action."
         blocks={zones.action}
         variant="action"
       />
+
+      <RelatedDecisions pages={state.relatedPages} />
 
       {zones.legal?.length ? (
         <section className="decision-legal">
@@ -225,7 +277,11 @@ export default function DecisionPage() {
             <p key={block.id || block.type}>{block.text}</p>
           ))}
         </section>
-      ) : null}
+      ) : (
+        <section className="decision-legal">
+          <p>{site.disclaimer}</p>
+        </section>
+      )}
     </main>
   );
 }
