@@ -1,0 +1,12 @@
+.theme-repair {
+  --color-bg: #f6f7f4;
+  --color-surface: #ffffff;
+  --color-text: #1f2933;
+  --color-muted: #64748b;
+  --color-border: #dfe7dc;
+  --color-accent: #3f7d20;
+  --color-accent-soft: #e7f3df;
+  --color-danger-soft: #fee2e2;
+  --color-warning-soft: #fef3c7;
+  --radius-card: 22px;
+}
